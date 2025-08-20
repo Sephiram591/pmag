@@ -1,0 +1,20 @@
+LayerViews:
+  nitride:
+    layer: [1, 0]
+    hatch_pattern: dotted
+    width: 1
+    color: "#ff9d9d"
+  diamond:
+    layer: [2, 0]
+    layer_in_name: true
+    hatch_pattern: coarsely dotted
+    transparent: true
+    width: 1
+    color: "cyan"
+  oxide:
+    layer: [3, 0]
+    layer_in_name: true
+    hatch_pattern: coarsely dotted
+    transparent: true
+    width: 1
+    color: "#805000"
