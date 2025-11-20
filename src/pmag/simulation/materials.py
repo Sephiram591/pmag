@@ -6,6 +6,52 @@ import os
 from pmag.config import PATH
 import dill
 
+def renamed_pole_residue(material, name):
+    pole_args = {
+        'name' : name,
+        'frequency_range' : material.frequency_range,
+        'allow_gain' : material.allow_gain,
+        'nonlinear_spec' : material.nonlinear_spec,
+        'modulation_spec' : material.modulation_spec,
+        'viz_spec' : material.viz_spec,
+        'heat_spec' : material.heat_spec,
+        'eps_inf' : material.eps_inf,
+        'poles' : material.poles,
+    }
+    new_mat = td.PoleResidue(**pole_args)
+    return new_mat
+
+def renamed_medium(material, name):
+    """Create a copy of a td.Medium with a new name.
+
+    Parameters
+    ----------
+    material : td.Medium
+        The input medium to copy.
+    name : str
+        The new name for the medium.
+
+    Returns
+    -------
+    td.Medium
+        A new Medium instance with the given name and otherwise identical properties.
+    """
+    medium_args = {
+        'name': name,
+        'frequency_range': material.frequency_range,
+        'allow_gain': material.allow_gain,
+        'nonlinear_spec': material.nonlinear_spec,
+        'modulation_spec': material.modulation_spec,
+        'viz_spec': material.viz_spec,
+        'heat_spec': material.heat_spec,
+        'permittivity': material.permittivity,
+        'conductivity': material.conductivity,
+        'attrs': getattr(material, 'attrs', None)
+    }
+    new_medium = td.Medium(**medium_args)
+    return new_medium
+
+
 def load_if_exists(file_path):
     if not os.path.exists(file_path):
         return False, None
@@ -86,19 +132,42 @@ def get_gap_mat(wavelengths=[1.55], plot=True):
         plt.show()
     return gap_mat
 
+def get_diamond_nonlinear(wavelengths=[1.55], plot=False):
+    n_solid = 2.4
+
+    # define the nonlinear parameters
+    n_kerr_2 = 2e-8
+    kerr_chi3 = 4 * (n_solid**2) * td.constants.EPSILON_0 * td.constants.C_0 * n_kerr_2 / 3
+    chi3_model = td.NonlinearSpec(models=[td.NonlinearSusceptibility(chi3=kerr_chi3)], num_iters=10)
+    kerr_solid = td.Medium(permittivity=n_solid**2, nonlinear_spec=chi3_model)
+    if plot:
+        plt.figure(figsize=(10, 5))
+        plt.title('Diamond Nonlinear')
+        kerr_solid.plot()
+        plt.show()
+    return kerr_solid
 mat_funcs = {
     'diamond': get_diamond_mat,
+    'diamond_nonlinear': get_diamond_nonlinear,
     'nitride': get_nitride_mat,
     'oxide': get_oxide_mat,
     'rich_sin_high': lambda wavelengths, plot: get_rich_sin_mat(wavelengths=wavelengths, richness='high', plot=plot),
     'rich_sin_mid': lambda wavelengths, plot: get_rich_sin_mat(wavelengths=wavelengths, richness='mid', plot=plot),
     'rich_sin_low': lambda wavelengths, plot: get_rich_sin_mat(wavelengths=wavelengths, richness='low', plot=plot),
     'gap': get_gap_mat,
+    'air': lambda wavelengths=[1.55], plot=True: td.Medium(permittivity=1.0, name='air'),
+    'PEC': lambda wavelengths=[1.55], plot=True: td.PECMedium(name='PEC'),
 }
 
-def init_materials(mat_names, wavelengths=[1.55], plot=True):
-    materials = {'air': td.Medium(permittivity=1.0)}
-    for m in mat_names:
-        print(f"Initializing {m} material")
-        materials[m] = mat_funcs[m](wavelengths=wavelengths, plot=plot)
+def init_materials(mat_names, mat_ids, wavelengths=[1.55], plot=True):
+    materials = {'air': mat_funcs['air']()}
+    for m, m_id in zip(mat_names, mat_ids):
+        print(f"Initializing '{m_id}' material as '{m}'")
+        loaded_mat = mat_funcs[m_id](wavelengths=wavelengths, plot=plot)
+        if m_id == 'PEC':
+            materials[m] = td.PECMedium(name=m)
+        elif isinstance(loaded_mat, td.Medium):
+            materials[m] = renamed_medium(loaded_mat, m)
+        else:
+            materials[m] = renamed_pole_residue(loaded_mat, m)
     return materials

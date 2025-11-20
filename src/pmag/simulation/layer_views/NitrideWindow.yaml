@@ -30,3 +30,15 @@ LayerViews:
     hatch_pattern: dotted
     width: 1
     color: "magenta"
+  reflector:
+    layer: [6, 0]
+    layer_in_name: true
+    hatch_pattern: dotted
+    width: 1
+    color: "yellow"
+  window2:
+    layer: [7, 0]
+    layer_in_name: true
+    hatch_pattern: dotted
+    width: 1
+    color: "green"

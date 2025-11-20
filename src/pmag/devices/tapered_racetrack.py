@@ -1,6 +1,8 @@
 import gdsfactory as gf
 import numpy as np
+from gdsfactory.cross_section import cross_section
 gf.clear_cache()
+@gf.cell
 def euler_curve_tapered(width, radius: float = 10, p2=.5):
     c = gf.Component("euler_curve")
 
@@ -29,12 +31,13 @@ def euler_curve_tapered(width, radius: float = 10, p2=.5):
 
     return c
 
-def euler_curve_transition(initial_width, curve_width, outer_radius: float = 10, npoints=None, ttype='linear'):
+@gf.cell
+def euler_curve_transition(initial_width, curve_width, outer_radius: float = 10, npoints=None, ttype='linear', layer='diamond'):
     c = gf.Component("euler_curve")
 
-    initial_section = gf.Section(width=initial_width, offset=0, layer=(1, 0), name="wg")
+    initial_section = gf.Section(width=initial_width, offset=0, layer=layer, name="wg")
     X1 = gf.CrossSection(sections=[initial_section])
-    curve_section = gf.Section(width=curve_width, offset=0, layer=(1, 0), name="wg")
+    curve_section = gf.Section(width=curve_width, offset=0, layer=layer, name="wg")
     X2 = gf.CrossSection(sections=[curve_section])
 
     Xtrans = gf.path.transition(cross_section1=X1, cross_section2=X2, width_type=ttype)
@@ -65,17 +68,18 @@ def euler_curve_transition(initial_width, curve_width, outer_radius: float = 10,
     transition_down_ref = c << transition_down
     c.movey(initial_width/2)
     
-    c.add_port("o1", center =path_up.points[0], layer=(1,0), width=initial_width)
-    c.add_port("o2", center =path_down.points[-1], layer=(1,0), width=initial_width)
-    c.add_port("i1", center=path_up.points[-1], layer=(1,0), width=curve_width)
+    c.add_port("o1", center =path_up.points[0], layer=layer, width=initial_width)
+    c.add_port("o2", center =path_down.points[-1], layer=layer, width=initial_width)
+    c.add_port("i1", center=path_up.points[-1], layer=layer, width=curve_width)
     return c
 
-def euler_curve_lopsided(initial_width, final_width, outer_radius: float = 10, npoints=None, ttype='linear', name='euler_curve'):
+@gf.cell
+def euler_curve_lopsided(initial_width, final_width, outer_radius: float = 10, npoints=None, ttype='linear', name='euler_curve', layer='diamond'):
     c = gf.Component(name)
 
-    initial_section = gf.Section(width=initial_width, offset=0, layer=(1, 0), name="wg")
+    initial_section = gf.Section(width=initial_width, offset=0, layer=layer, name="wg")
     X1 = gf.CrossSection(sections=[initial_section])
-    curve_section = gf.Section(width=final_width, offset=0, layer=(1, 0), name="wg")
+    curve_section = gf.Section(width=final_width, offset=0, layer=layer, name="wg")
     X2 = gf.CrossSection(sections=[curve_section])
 
     Xtrans = gf.path.transition(cross_section1=X1, cross_section2=X2, width_type=ttype)
@@ -92,9 +96,9 @@ def euler_curve_lopsided(initial_width, final_width, outer_radius: float = 10, n
     transition_ref = c << transition
     c.movey(initial_width/2)
     
-    c.add_port("o1", center=path.points[0], layer=(1,0), width=initial_width)
-    c.add_port("o2", center=path.points[-1], layer=(1,0), width=final_width)
-    c.add_port("i1", center=path.points[len((path.points)+1)//2], layer=(1,0), width=initial_width)
+    c.add_port("o1", center=path.points[0], layer=layer, width=initial_width)
+    c.add_port("o2", center=path.points[-1], layer=layer, width=final_width)
+    c.add_port("i1", center=path.points[len((path.points)+1)//2], layer=layer, width=initial_width)
     return c
 
 def compute_normals(points):
@@ -127,7 +131,8 @@ def compute_normals(points):
 
     return unit_normals, unit_tangents
 
-def euler_curve_tapered_coupler(initial_width, curve_width, outer_radius, coupler_width, start_gap, mid_gap, end_gap, output_angle=90, output_radius=5, start_taper_halfway=False, end_taper_halfway=False, euler_res=100, ttype='sine', offset_type='sine', layer=2):
+@gf.cell
+def euler_curve_tapered_coupler(initial_width, curve_width, outer_radius, coupler_width, start_gap, mid_gap, end_gap, output_angle=90, output_radius=5, start_taper_halfway=False, end_taper_halfway=False, euler_res=100, ttype='sine', offset_type='sine', layer='diamond'):
     radius = outer_radius-initial_width/2
 
     p = gf.path.euler(radius=radius, angle=180, p=1, use_eff=True, npoints=int(euler_res*radius))
@@ -156,13 +161,13 @@ def euler_curve_tapered_coupler(initial_width, curve_width, outer_radius, couple
     # Shift p by widths/2
     p.points = p.points + p_normals * widths[:, np.newaxis] / 2 + p_normals * gaps[:, np.newaxis]
 
-    s0 = gf.Section(width=coupler_width, offset=0, layer=(layer, 0), name="coupler", port_names=("o1", "o2"))
+    s0 = gf.Section(width=coupler_width, offset=0, layer=layer, name="coupler", port_names=("o1", "o2"))
     c_X1 = gf.CrossSection(sections=[s0])
 
     # s0 = gf.Section(width=width, offset=width/2+(start_gap+end_gap)/2, layer=(1, 0), name="coupler", port_names=("o1", "o2"))
     # c_X2 = gf.CrossSection(sections=[s0])
 
-    s0 = gf.Section(width=0.002, offset=0, layer=(layer, 0), name="coupler", port_names=("o1", "o2"))
+    s0 = gf.Section(width=0.002, offset=0, layer=layer, name="coupler", port_names=("o1", "o2"))
     c_X3 = gf.CrossSection(sections=[s0])
     CTrans = gf.path.transition(cross_section1=c_X1, cross_section2=c_X3, width_type=ttype, offset_type=offset_type)
 
@@ -185,7 +190,7 @@ def euler_curve_tapered_coupler(initial_width, curve_width, outer_radius, couple
         coupler_invariate = None
         coupler_transition = gf.path.extrude_transition(p, CTrans)
         
-    c= gf.Component("tapered_euler_coupler")
+    c= gf.Component()
 
     coupler_transition_ref = c << coupler_transition
     if coupler_invariate:
@@ -208,17 +213,18 @@ def euler_curve_tapered_coupler(initial_width, curve_width, outer_radius, couple
         euler_out_ref.connect(euler_out_ref.ports['o1'], coupler_invariate_ref.ports['o1'], allow_layer_mismatch=True)
     else:
         euler_out_ref.connect(euler_out_ref.ports['o1'], coupler_transition_ref.ports['o1'], allow_layer_mismatch=True)
-    c.add_port("o1", center=euler_out_ref.ports['o2'].center, width=coupler_width, layer=(layer, 0))
+    c.add_port("o1", center=euler_out_ref.ports['o2'].center, width=coupler_width, layer=layer)
 
-    c.add_port("o2", center=coupler_transition_ref.ports['o2'].center, width=coupler_width, layer=(layer, 0), orientation=180)
+    c.add_port("o2", center=coupler_transition_ref.ports['o2'].center, width=coupler_width, layer=layer, orientation=180)
     return c
 
-def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_width, straight_taper_length=0, straight_taper_end_w=0, support_width=0, support_base=False, use_bottom_taper=True, coupler_args=None, ttype='linear', straight_taper_ttype='linear'):
+@gf.cell
+def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_width, straight_taper_length=0, straight_taper_end_w=0, support_width=0, support_base=False, use_bottom_taper=True, coupler_args=None, ttype='linear', straight_taper_ttype='linear', layer='DIAMOND'):
     outer_radius = wg_separation/2 
     outer_radius += wg_width/2 if not straight_taper_length > 0 else straight_taper_end_w/2
-    c = gf.Component("tapered_euler_resonator")
+    c = gf.Component()
     initial_euler_width = wg_width if not straight_taper_length else straight_taper_end_w
-    euler_curve = euler_curve_transition(initial_euler_width, final_euler_width, outer_radius=outer_radius, ttype=ttype)
+    euler_curve = euler_curve_transition(initial_euler_width, final_euler_width, outer_radius=outer_radius, ttype=ttype, layer=layer)
     euler_curve_west_ref = c << euler_curve
     euler_curve_west_ref.rotate(180)
     euler_curve_east_ref = c << euler_curve
@@ -232,9 +238,10 @@ def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_widt
     if wg_length > 0:
         euler_curve_west_ref.movex(-wg_length/2)
         euler_curve_east_ref.movex(wg_length/2)
+        xsection_straight = cross_section(width=wg_width, layer=layer, radius_min=outer_radius/10)
         straight_wg = gf.components.straight(
             length=wg_length,
-                    width=wg_width, npoints=100)
+                    npoints=100, cross_section=xsection_straight)
         straight_wg_south_ref = c << straight_wg
         straight_wg_north_ref = c << straight_wg
         straight_wg_south_ref.movex(-wg_length/2)
@@ -244,10 +251,10 @@ def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_widt
     if straight_taper_length > 0:
         euler_curve_west_ref.movex(-straight_taper_length)
         euler_curve_east_ref.movex(straight_taper_length)
-        s0 = gf.Section(width=wg_width, offset=0, layer=(1, 0), name="straight_taper", port_names=("o1", "o2"))
+        s0 = gf.Section(width=wg_width, offset=0, layer=layer, name="straight_taper", port_names=("o1", "o2"))
         c_X1 = gf.CrossSection(sections=[s0])
 
-        s0 = gf.Section(width=straight_taper_end_w, offset=0, layer=(1, 0), name="straight_taper", port_names=("o1", "o2"))
+        s0 = gf.Section(width=straight_taper_end_w, offset=0, layer=layer, name="straight_taper", port_names=("o1", "o2"))
         c_X2 = gf.CrossSection(sections=[s0])
         straight_taper = gf.components.taper_cross_section(cross_section1=c_X1, cross_section2=c_X2, length=straight_taper_length, npoints=101, linear=False, width_type=straight_taper_ttype).copy()
         straight_taper_ne_ref = c << straight_taper
@@ -267,9 +274,10 @@ def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_widt
         straight_taper_sw_ref.movex(-wg_length/2)
     if support_width:
         support_length = outer_radius + wg_length if support_base else outer_radius
+        xsection_support = cross_section(width=support_width, layer=layer, radius_min=outer_radius/10)
         support_wg = gf.components.straight(
             length=support_length,
-                    width=support_width)
+                    cross_section=xsection_support)
         support_wg_east_ref = c << support_wg
         support_wg_west_ref = c << support_wg
         support_wg_east_ref.connect(support_wg_east_ref.ports['o2'], euler_curve_east_ref.ports['i1'], allow_width_mismatch=True)
@@ -281,13 +289,14 @@ def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_widt
         base_yspan = final_euler_width*10
         base_xspan = wg_length
         if support_base:
-            support_base_ref = c << gf.components.rectangle(size=(base_xspan, base_yspan), layer=(1, 0))
+            support_base_ref = c << gf.components.rectangle(size=(base_xspan, base_yspan), layer=layer)
             support_base_ref.movey(wg_separation/2-base_yspan/2)
             support_base_ref.movex(-base_xspan/2)
     if not use_bottom_taper:
+        xsection_bottom = cross_section(width=initial_euler_width, layer=layer, radius_min=outer_radius/10)
         bottom_wg = gf.components.straight(
             length=wg_length+straight_taper_length*2,
-                    width=initial_euler_width)
+                    cross_section=xsection_bottom)
         bottom_wg_ref = c << bottom_wg
         bottom_wg_ref.movex(-wg_length/2-straight_taper_length)
         bottom_wg_ref.movey(straight_taper_end_w/2-wg_width/2)
@@ -301,13 +310,16 @@ def tapered_euler_resonator(wg_separation, wg_length, wg_width, final_euler_widt
         else:
             euler_coupler_ref.connect(euler_coupler_ref.ports['o2'], straight_wg_north_ref.ports['o2'], allow_layer_mismatch=True, allow_width_mismatch=True)
             euler_coupler_ref.movey(coupler_args['end_gap'])
+            
+    c.add_port("o1", center=(0,0), width=wg_width, layer=layer, orientation=180)
+    c.add_port("o2", center=(0, wg_separation), width=wg_width, layer=layer, orientation=180)
     return c
 
-
-def lopsided_euler_resonator(wg_separation, wg_length,sw_wg_width, se_wg_width, north_wg_width, support_width=0, support_base=False, ttype='linear', coupler_width=.6, coupler_type='sine', output_length=10, crop_taper=0):
+@gf.cell
+def lopsided_euler_resonator(wg_separation, wg_length,sw_wg_width, se_wg_width, north_wg_width, support_width=0, support_base=False, ttype='linear', coupler_width=.6, coupler_type='sine', output_length=10, crop_taper=0, layer='diamond'):
     south_wg_width = np.max([sw_wg_width, se_wg_width])
     outer_radius = wg_separation/2 
-    c = gf.Component("lopsided_euler_resonator")
+    c = gf.Component()
     euler_curve_se = euler_curve_lopsided(se_wg_width, north_wg_width, outer_radius+se_wg_width/2, npoints=None, ttype=ttype, name='euler_curve_se')
     euler_curve_sw = euler_curve_lopsided(sw_wg_width, north_wg_width, outer_radius+sw_wg_width/2, npoints=None, ttype=ttype, name='euler_curve_sw')
     euler_curve_west_ref = c << euler_curve_sw
@@ -321,10 +333,11 @@ def lopsided_euler_resonator(wg_separation, wg_length,sw_wg_width, se_wg_width, 
     if wg_length > 0:
         euler_curve_west_ref.movex(-wg_length/2)
         euler_curve_east_ref.movex(wg_length/2)
+        xsection_north = cross_section(width=north_wg_width, layer=layer, radius_min=outer_radius/10)
+        xsection_south = cross_section(width=south_wg_width, layer=layer, radius_min=outer_radius/10)
         straight_wg_north = gf.components.straight(
-            length=wg_length,
-                    width=north_wg_width, npoints=100)
-        straight_wg_south = gf.components.taper(length=wg_length, width1=sw_wg_width, width2=se_wg_width, port=None, layer=(1, 0))
+            length=wg_length, npoints=100, cross_section=xsection_north)
+        straight_wg_south = gf.components.taper(length=wg_length, width1=sw_wg_width, width2=se_wg_width, port=None, cross_section=xsection_south)
         straight_wg_south_ref = c << straight_wg_south
         straight_wg_north_ref = c << straight_wg_north
         straight_wg_south_ref.movex(-wg_length/2)
@@ -333,9 +346,10 @@ def lopsided_euler_resonator(wg_separation, wg_length,sw_wg_width, se_wg_width, 
 
     if support_width:
         support_length = outer_radius + wg_length if support_base else outer_radius
+        xsection_support = cross_section(width=support_width, layer=layer, radius_min=outer_radius/10)
         support_wg = gf.components.straight(
             length=support_length,
-                    width=support_width)
+                    cross_section=xsection_support)
         support_wg_east_ref = c << support_wg
         support_wg_west_ref = c << support_wg
         support_wg_east_ref.connect(support_wg_east_ref.ports['o2'], euler_curve_east_ref.ports['i1'], allow_width_mismatch=True)
@@ -347,15 +361,15 @@ def lopsided_euler_resonator(wg_separation, wg_length,sw_wg_width, se_wg_width, 
         base_yspan = north_wg_width*10
         base_xspan = wg_length
         if support_base:
-            support_base_ref = c << gf.components.rectangle(size=(base_xspan, base_yspan), layer=(1, 0))
+            support_base_ref = c << gf.components.rectangle(size=(base_xspan, base_yspan), layer=layer)
             support_base_ref.movey(wg_separation/2-base_yspan/2)
             support_base_ref.movex(-base_xspan/2)
 
     if coupler_width:
-        s0 = gf.Section(width=coupler_width, offset=0, layer=(2, 0), name="coupler", port_names=("o1", "o2"))
+        s0 = gf.Section(width=coupler_width, offset=0, layer=layer, name="coupler", port_names=("o1", "o2"))
         c_X1 = gf.CrossSection(sections=[s0])
 
-        s0 = gf.Section(width=0.002, offset=0, layer=(2, 0), name="coupler", port_names=("o1", "o2"))
+        s0 = gf.Section(width=0.002, offset=0, layer=layer, name="coupler", port_names=("o1", "o2"))
         c_X2 = gf.CrossSection(sections=[s0])
         coupler_taper = gf.components.taper_cross_section(cross_section1=c_X1, cross_section2=c_X2, length=wg_length-crop_taper, npoints=101, linear=False, width_type=coupler_type).copy()
         coupler_taper_ref = c << coupler_taper
